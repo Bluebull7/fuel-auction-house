@@ -34,28 +34,50 @@ predicate create_auction(item_name: String, description: String, start_price: u6
 		name: item_name,
 		description: description,
 		starting_price: start_price,
+		
+		//Set the highest bid to the starting price
 		highest_bid: Bid {
 			bidder: caller(),
-			amount: start_price // Set the highest bid to the starting price
+			amount: start_price x
 		},
+		
+		end_time: end_time
+		// Store the AuctionItem in the 'auctions' map using unique ID
 
 		storage().auctions.insert(auction_id, new_auction);
 
 	};
-	// Set the end_time based on the provided durartion
+}
 
-	// Store the AuctionItem in the 'auctions' map using unique ID
+//Predicate to handle bids
+predicate place_bid(auction_id: u64, bid_amount: u64) {
+	let auction = storage().auctions.get_or_else(&auction_id, || abort("Auction not found"));
+
+	assert(block.timestamp() < auction.end_time, "Auction has ended");
+	assert(bid_amount > auction.highest_bid.amount, "Bid amount must be greater than the current highest bid");
+
+	auction.highest_bid.bidder = caller();
+	auction.highest_bid.amount = bid_amount;
+
+	storage().auctions.insert(auction_id, *auction); // Update the auction in storage
 
 }
 
 // Predicate to handle auction closure
 predicate close_auction(auction_id: u64) {
+	
 	// Check if end_time has passed
-
+	let auction = storage().auctions.get_or_else(&auction_id, || abort("Auction not found"));
+	assert(block.timestamp() >= auction.end_time, "Auction has not ended");
+	1
 	// Determine the winner (highest bidder)
+	let winner = auction.highest_bid.bidder;
+	
+	// Transfer ownership or payment
 
-	// Handle the transfer of ownership or payment (depends on item representation)
-
+	// Remove the auction from storage
+	storage().auctions.remove(&auction_id);
 
 }
 
+}
